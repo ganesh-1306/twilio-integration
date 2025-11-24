@@ -20,6 +20,9 @@ export async function POST(req: NextRequest) {
 
   const digits = params.Digits || '';
   const supportNumber = process.env.TWILIO_SUPPORT_AGENT_NUMBER || process.env.TWILIO_PHONE_NUMBER || '';
+  
+  logs.push({ ts: Date.now(), type: 'webhook', event: 'ivr-action', data: { digits, supportNumber: supportNumber ? 'set' : 'missing' } });
+  
   let twiml = '';
 
   if (digits === '1') {
@@ -27,12 +30,16 @@ export async function POST(req: NextRequest) {
   } else if (digits === '2') {
     twiml = `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Say voice="Polly.Aditi">Our services include programmable voice, secure video meetings, and automated messaging journeys tailored for your teams.</Say>\n  <Pause length="1"/>\n  <Say>Returning to the main menu.</Say>\n  <Redirect method="POST">/api/twilio/webhook/voice</Redirect>\n</Response>`;
   } else if (digits === '3' && supportNumber) {
-    twiml = `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Say voice="Polly.Aditi">Connecting you to a Glocify representative.</Say>\n  <Dial timeout="25">${supportNumber}</Dial>\n  <Say>All representatives are busy right now.</Say>\n  <Redirect method="POST">/api/twilio/webhook/voice</Redirect>\n</Response>`;
+    const dialCallbackUrl = `${process.env.NEXT_PUBLIC_APP_ORIGIN}/api/twilio/ivr-dial-callback`;
+    twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Aditi">Connecting you to a Glocify representative.</Say>
+  <Dial timeout="30" action="${dialCallbackUrl}" method="POST">${supportNumber}</Dial>
+</Response>`;
   } else {
     twiml = `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Say voice="Polly.Aditi">Sorry, that was not a valid option.</Say>\n  <Redirect method="POST">/api/twilio/webhook/voice</Redirect>\n</Response>`;
   }
 
-  logs.push({ ts: Date.now(), type: 'webhook', event: 'ivr-action', data: { digits } });
   return new NextResponse(twiml, { status: 200, headers: { 'Content-Type': 'application/xml' } });
 }
 
