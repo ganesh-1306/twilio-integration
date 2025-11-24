@@ -4,10 +4,15 @@ import { smsSendSchema } from '@/lib/validators';
 import { badRequest, getRequestIp, json, tooManyRequests } from '@/lib/http';
 import { tokenBucketAllow } from '@/lib/rateLimit';
 import { logs } from '@/lib/memory';
+import { claimFeatureSlot, formatFeatureThrottleMessage } from '@/lib/featureThrottle';
 
 export async function POST(req: NextRequest) {
   try {
     const ip = getRequestIp(req);
+    const throttle = claimFeatureSlot(ip);
+    if (!throttle.allowed) {
+      return json({ error: formatFeatureThrottleMessage(throttle.retryAfterMs) }, 429);
+    }
     if (!tokenBucketAllow(`send-sms:${ip}`, 12, 6)) {
       return tooManyRequests();
     }

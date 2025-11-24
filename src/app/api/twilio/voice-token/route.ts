@@ -1,11 +1,18 @@
 import { NextRequest } from 'next/server';
-import { badRequest, json } from '@/lib/http';
+import { badRequest, getRequestIp, json } from '@/lib/http';
 import { identitySchema } from '@/lib/validators';
 import { requireEnv } from '@/lib/twilio';
 import { SignJWT } from 'jose';
+import { claimFeatureSlot, formatFeatureThrottleMessage } from '@/lib/featureThrottle';
 
 // Generates an Access Token with Voice grant for browser-based voice (Twilio Client)
 export async function GET(req: NextRequest) {
+  const ip = getRequestIp(req);
+  const throttle = claimFeatureSlot(ip);
+  if (!throttle.allowed) {
+    return json({ error: formatFeatureThrottleMessage(throttle.retryAfterMs) }, 429);
+  }
+
   const { searchParams } = new URL(req.url);
   const identity = searchParams.get('identity');
   const parsed = identitySchema.safeParse({ identity });

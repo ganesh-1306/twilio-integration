@@ -4,6 +4,7 @@ type Bucket = {
 };
 
 const buckets = new Map<string, Bucket>();
+const cooldowns = new Map<string, number>();
 
 export function tokenBucketAllow(key: string, ratePerMin: number, burst: number): boolean {
   const now = Date.now();
@@ -26,6 +27,16 @@ export function tokenBucketAllow(key: string, ratePerMin: number, burst: number)
     return true;
   }
   return false;
+}
+
+export function enforceCooldown(key: string, cooldownMs: number): { allowed: boolean; retryAfterMs: number } {
+  const now = Date.now();
+  const availableAt = cooldowns.get(key) ?? 0;
+  if (now < availableAt) {
+    return { allowed: false, retryAfterMs: availableAt - now };
+  }
+  cooldowns.set(key, now + cooldownMs);
+  return { allowed: true, retryAfterMs: 0 };
 }
 
 

@@ -88,6 +88,15 @@ UI helpers:
 - `GET /api/ui/logs` — returns recent in-memory logs
 - `GET /api/ui/inbox` — returns inbound SMS inbox
 
+## IVR Flow (Glocify Support)
+
+- Provision any Twilio voice-capable toll-free or local support number (example: `+1 (888) 555‑0134`) and set its **Voice webhook** (A Call Comes In) to `POST https://<your-domain>/api/twilio/webhook/voice`.
+- Callers hear: “Welcome to Glocify customer support. Press 1 to learn about Glocify, press 2 to hear about our services, or press 3 to talk to our representative.”
+  - **Press 1**: Plays a short Glocify overview and returns to the main menu.
+  - **Press 2**: Plays a services summary (voice, video, messaging) and returns to the main menu.
+  - **Press 3**: Uses `<Dial>` to call the number you set in `TWILIO_SUPPORT_AGENT_NUMBER` (falls back to `TWILIO_PHONE_NUMBER`). If the callee doesn’t answer or rejects the call, the caller hears “All representatives are busy right now” and gets redirected back to the menu.
+- All IVR endpoints validate Twilio signatures and loop back to `/api/twilio/webhook/voice` whenever there is no input.
+
 ## Security Notes
 - Never expose Twilio credentials client-side. All secrets are in environment variables server-side.
 - Webhooks are validated with `X-Twilio-Signature` against `TWILIO_AUTH_TOKEN`.
